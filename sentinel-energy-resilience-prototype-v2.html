@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sentinel — India Energy Resilience Command Center</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0A0F1C;
+    --panel:#0F1A2E;
+    --panel-2:#142544;
+    --border:#23324D;
+    --amber:#FF9933;
+    --amber-dim:#7A4A1A;
+    --cyan:#3B7DD8;
+    --cyan-dim:#1B3A66;
+    --red:#DC2626;
+    --red-dim:#4A1620;
+    --green:#1FA34A;
+    --text:#F4F1EA;
+    --muted:#8B96A8;
+    --muted-2:#57647A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  /* ===== TOP BAR ===== */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 24px;
+    background:linear-gradient(180deg,#11161F 0%, #0D1119 100%);
+    border-bottom:1px solid var(--border);
+    flex-wrap:wrap; gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:34px; height:34px; border-radius:50%;
+    background:#0A0F1C;
+    border:2px solid transparent;
+    background-image:linear-gradient(#0A0F1C,#0A0F1C), linear-gradient(180deg, var(--amber), #F4F1EA 50%, var(--green));
+    background-origin:border-box; background-clip:content-box, border-box;
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; color:var(--cyan);
+  }
+  .brand-text h1{font-size:15px; font-weight:700; letter-spacing:0.3px;}
+  .brand-text span{font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace;}
+  .top-stats{display:flex; gap:22px; align-items:center; flex-wrap:wrap;}
+  .stat{text-align:right;}
+  .stat .label{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px;}
+  .stat .value{font-size:18px; font-weight:700; font-family:'JetBrains Mono',monospace;}
+  .clock{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--cyan);}
+  .risk-pill{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 14px; border-radius:20px;
+    background:rgba(240,69,90,0.12); border:1px solid var(--red-dim);
+  }
+  .risk-pill .dot{width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red); animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%{opacity:1;}50%{opacity:0.35;}100%{opacity:1;}}
+
+  /* ===== TICKER ===== */
+  .ticker-wrap{
+    background:#0D1119; border-bottom:1px solid var(--border);
+    overflow:hidden; white-space:nowrap; padding:7px 0;
+  }
+  .ticker{display:inline-block; padding-left:100%; animation:scroll 38s linear infinite;}
+  .ticker span{margin-right:48px; font-size:12px; color:var(--muted); font-family:'JetBrains Mono',monospace;}
+  .ticker span b{color:var(--amber); font-weight:600;}
+  @keyframes scroll{from{transform:translateX(0);} to{transform:translateX(-100%);}}
+
+  /* ===== NAV ===== */
+  .nav{
+    display:flex; gap:4px; padding:0 24px; background:var(--bg);
+    border-bottom:1px solid var(--border); overflow-x:auto;
+  }
+  .nav button{
+    background:none; border:none; color:var(--muted);
+    padding:14px 18px; font-size:13px; font-weight:600; cursor:pointer;
+    border-bottom:2px solid transparent; transition:all .15s; white-space:nowrap;
+    font-family:'Inter',sans-serif;
+  }
+  .nav button:hover{color:var(--text);}
+  .nav button.active{color:var(--text); border-bottom:2px solid var(--cyan);}
+
+  main{padding:24px; max-width:1360px; margin:0 auto;}
+  .view{display:none; animation:fadein .25s ease;}
+  .view.active{display:block;}
+  @keyframes fadein{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .grid{display:grid; gap:16px;}
+  .g2{grid-template-columns:1.3fr 1fr;}
+  .g3{grid-template-columns:repeat(3,1fr);}
+  @media(max-width:900px){.g2,.g3{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:18px;
+  }
+  .card h3{font-size:13px; font-weight:700; letter-spacing:0.3px; margin-bottom:2px;}
+  .card .sub{font-size:11px; color:var(--muted); margin-bottom:14px;}
+  .kicker{
+    font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--cyan); margin-bottom:6px; font-family:'JetBrains Mono',monospace;
+  }
+
+  /* ===== OVERVIEW ===== */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px;}
+  @media(max-width:900px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+  .kpi{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px;
+    position:relative; overflow:hidden;
+  }
+  .kpi .bignum{font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:700;}
+  .kpi .lbl{font-size:11px; color:var(--muted); margin-top:4px;}
+  .kpi .delta{font-size:11px; margin-top:8px; font-family:'JetBrains Mono',monospace;}
+  .up{color:var(--red);} .down{color:var(--green);}
+  .barline{height:3px; width:100%; background:var(--border); border-radius:2px; margin-top:10px; overflow:hidden;}
+  .barline i{display:block; height:100%; border-radius:2px;}
+
+  /* ===== HORMUZ MAP ===== */
+  .mapwrap{position:relative; border-radius:10px; overflow:hidden; background:radial-gradient(ellipse at 30% 40%, #0d2a2c 0%, #0A0E14 60%);
+    border:1px solid var(--border);}
+  .sonar-sweep{
+    position:absolute; top:-50%; left:-50%; width:200%; height:200%;
+    background:conic-gradient(from 0deg, rgba(59,125,216,0.16), transparent 25%);
+    animation:spin 6s linear infinite; pointer-events:none;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .tanker-dot{
+    position:absolute; width:9px; height:9px; border-radius:50%; cursor:pointer;
+    border:1px solid rgba(255,255,255,0.4);
+  }
+  .tanker-dot.safe{background:var(--green); box-shadow:0 0 5px var(--green);}
+  .tanker-dot.warn{background:var(--amber); box-shadow:0 0 5px var(--amber);}
+  .tanker-dot.danger{background:var(--red); box-shadow:0 0 7px var(--red); animation:pulse 1.2s infinite;}
+  .tanker-label{
+    position:absolute; font-size:9px; font-family:'JetBrains Mono',monospace; color:var(--muted);
+    transform:translateY(-14px); white-space:nowrap;
+  }
+  .route-line{position:absolute; border-top:1px dashed rgba(124,135,152,0.35);}
+
+  /* ===== FLEET TABLE ===== */
+  table{width:100%; border-collapse:collapse; font-size:12px;}
+  th{text-align:left; padding:8px 10px; color:var(--muted); font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border);}
+  td{padding:9px 10px; border-bottom:1px solid #1a212c; font-family:'JetBrains Mono',monospace;}
+  tr:hover td{background:#151b26;}
+  .badge{padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700; font-family:'Inter',sans-serif;}
+  .badge.safe{background:rgba(52,211,153,0.12); color:var(--green);}
+  .badge.warn{background:rgba(255,122,69,0.12); color:var(--amber);}
+  .badge.danger{background:rgba(240,69,90,0.14); color:var(--red);}
+
+  /* ===== PANIC INDEX ===== */
+  .city-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #1a212c;}
+  .city-row:last-child{border-bottom:none;}
+  .city-name{width:90px; font-size:12px; font-weight:600;}
+  .city-bar{flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden;}
+  .city-bar i{display:block; height:100%; border-radius:4px;}
+  .city-score{width:36px; text-align:right; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700;}
+
+  .feed-item{padding:9px 0; border-bottom:1px solid #1a212c; font-size:12px;}
+  .feed-item:last-child{border-bottom:none;}
+  .feed-item .meta{font-size:10px; color:var(--muted-2); font-family:'JetBrains Mono',monospace; margin-top:3px;}
+
+  /* ===== AI REASONING ===== */
+  .rec-card{border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; background:var(--panel-2);}
+  .rec-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;}
+  .rec-title{font-size:14px; font-weight:700;}
+  .rec-tag{font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace;}
+  .confidence{display:flex; align-items:center; gap:8px;}
+  .conf-ring{width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'JetBrains Mono',monospace;}
+  .factor-row{display:flex; align-items:center; gap:10px; margin-top:8px;}
+  .factor-name{width:120px; font-size:11px; color:var(--muted);}
+  .factor-bar{flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden;}
+  .factor-bar i{display:block; height:100%; border-radius:3px; background:var(--cyan);}
+  .factor-val{width:30px; text-align:right; font-size:11px; font-family:'JetBrains Mono',monospace;}
+  .why-toggle{
+    margin-top:12px; background:none; border:1px solid var(--border); color:var(--cyan);
+    padding:7px 12px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;
+  }
+  .why-toggle:hover{background:#152026;}
+  .why-box{display:none; margin-top:12px; padding:12px; background:#0D1119; border-radius:8px; border-left:2px solid var(--cyan);}
+  .why-box.open{display:block;}
+  .why-box li{font-size:12px; color:var(--text); margin-bottom:7px; padding-left:14px; position:relative; line-height:1.5;}
+  .why-box li::before{content:"→"; position:absolute; left:0; color:var(--cyan);}
+  .why-box .conf-note{font-size:11px; color:var(--muted); margin-top:8px; font-style:italic;}
+
+  .legend{display:flex; gap:14px; margin-top:10px; flex-wrap:wrap;}
+  .legend span{font-size:10px; color:var(--muted); display:flex; align-items:center; gap:5px;}
+  .legend i{width:8px; height:8px; border-radius:50%; display:inline-block;}
+
+  canvas{max-height:260px;}
+  footer{text-align:center; padding:24px; font-size:11px; color:var(--muted-2); font-family:'JetBrains Mono',monospace;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">☸</div>
+    <div class="brand-text">
+      <h1>SENTINEL</h1>
+      <span>AI ENERGY SUPPLY CHAIN RESILIENCE — INDIA</span>
+    </div>
+  </div>
+  <div class="top-stats">
+    <div class="stat"><div class="label">Reserve Cover</div><div class="value mono" style="color:var(--amber)">9.5 days</div></div>
+    <div class="stat"><div class="label">Hormuz Flow Risk</div><div class="value mono" style="color:var(--red)">73 / 100</div></div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="risk-pill"><div class="dot"></div><span class="mono" style="font-size:12px; font-weight:700;">ELEVATED ALERT</span></div>
+  </div>
+</div>
+
+<div class="ticker-wrap">
+  <div class="ticker">
+    <span><b>[SIGNAL]</b> Two tankers report AIS transponder gap near Hormuz approach — flagged for review</span>
+    <span><b>[MARKET]</b> Brent crude +8.1% intraday on Gulf transit anxiety</span>
+    <span><b>[ROUTE]</b> Alternate Cape of Good Hope corridor congestion up 14% week-on-week</span>
+    <span><b>[SENTIMENT]</b> Search interest for "petrol shortage" up 340% in Delhi-NCR in 6 hours</span>
+    <span><b>[RESERVE]</b> SPR utilisation model recommends 2.1% drawdown over next 72h</span>
+    <span><b>[SUPPLIER]</b> West Africa (Nigeria) spot availability confirmed — 3 tankers within 5-day window</span>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="active" data-view="overview">Overview</button>
+  <button data-view="fleet">🛰️ Dark Fleet Detection</button>
+  <button data-view="panic">📊 Panic Index</button>
+  <button data-view="reasoning">🧠 AI Reasoning Engine</button>
+  <button data-view="reserve">🛢️ SPR Optimisation</button>
+  <button data-view="sources">🔌 Data Sources</button>
+</div>
+
+<main>
+
+  <!-- ===================== OVERVIEW ===================== -->
+  <div class="view active" id="overview">
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="lbl">HORMUZ CORRIDOR RISK</div>
+        <div class="bignum" style="color:var(--red)">73</div>
+        <div class="delta up">▲ 21 pts vs last week</div>
+        <div class="barline"><i style="width:73%; background:var(--red);"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">VESSELS FLAGGED (AIS GAP)</div>
+        <div class="bignum" style="color:var(--amber)">4</div>
+        <div class="delta up">▲ 2 new in 24h</div>
+        <div class="barline"><i style="width:40%; background:var(--amber);"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">NATIONAL PANIC INDEX</div>
+        <div class="bignum" style="color:var(--amber)">58</div>
+        <div class="delta up">▲ 340% search spike, Delhi</div>
+        <div class="barline"><i style="width:58%; background:var(--amber);"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">ALT. SUPPLY READINESS</div>
+        <div class="bignum" style="color:var(--green)">86</div>
+        <div class="delta down">3 backup routes ready</div>
+        <div class="barline"><i style="width:86%; background:var(--green);"></i></div>
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="kicker">Live Corridor Snapshot</div>
+        <h3>Strait of Hormuz → Indian Refineries</h3>
+        <div class="sub">Simplified route view — see Dark Fleet Detection tab for full vessel intelligence</div>
+        <div id="mini-map" class="mapwrap" style="height:220px;"></div>
+      </div>
+      <div class="card">
+        <div class="kicker">What Sentinel Is Watching Right Now</div>
+        <h3>Reasoning Snapshot</h3>
+        <div class="sub">Condensed from the AI Reasoning Engine</div>
+        <ul style="font-size:12px; line-height:1.9; padding-left:18px; color:var(--text);">
+          <li>2 tankers near Hormuz have gone dark on AIS in the last 9 hours — consistent with sanction-evasion patterns, not confirmed threat.</li>
+          <li>Panic-buying signals rising fastest in Delhi-NCR and Bengaluru — recommend pre-positioning retail stock before it hits pumps.</li>
+          <li>Nigeria (Bonny Light) is the top-ranked alternate supplier this week: 5-day tanker availability, no sanction exposure, +6% cost premium.</li>
+          <li>SPR model advises a small 2.1% drawdown now rather than waiting — cheaper than an emergency spot purchase later.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DARK FLEET ===================== -->
+  <div class="view" id="fleet">
+    <div class="grid g2">
+      <div class="card">
+        <div class="kicker">Geospatial Intelligence</div>
+        <h3>Hormuz–India Corridor — Vessel Tracking</h3>
+        <div class="sub">Simulated AIS + satellite correlation feed. Red = signal gap detected (possible dark-fleet behaviour).</div>
+        <div id="main-map" class="mapwrap" style="height:340px;"></div>
+        <div class="legend">
+          <span><i style="background:var(--green)"></i> Normal AIS signal</span>
+          <span><i style="background:var(--amber)"></i> Irregular course / slow signal</span>
+          <span><i style="background:var(--red)"></i> AIS gap &gt; 6h (flagged)</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="kicker">Detection Logic</div>
+        <h3>How a vessel gets flagged</h3>
+        <div class="sub">Explainable, not a black box</div>
+        <div style="font-size:12px; line-height:1.8; color:var(--text);">
+          <p style="margin-bottom:10px;"><b style="color:var(--cyan)">Step 1 —</b> Cross-reference last known AIS ping against expected transponder interval (typically every 2–6 min for tankers).</p>
+          <p style="margin-bottom:10px;"><b style="color:var(--cyan)">Step 2 —</b> If signal gap exceeds 6 hours in a sanctioned or high-risk corridor, check satellite optical/SAR pass for a vessel-shaped object at the last projected position.</p>
+          <p style="margin-bottom:10px;"><b style="color:var(--cyan)">Step 3 —</b> Cross-check hull against known ship-to-ship transfer zones and prior sanctioned-fleet registries.</p>
+          <p><b style="color:var(--cyan)">Step 4 —</b> Assign a risk score (0–100) and route it into the Adaptive Procurement Orchestrator so flagged capacity isn't relied upon.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="kicker">Fleet Registry</div>
+      <h3>Tracked Vessels — Hormuz Approach</h3>
+      <table>
+        <thead>
+          <tr><th>Vessel</th><th>Flag</th><th>Cargo</th><th>Last AIS Ping</th><th>Gap</th><th>Risk Score</th><th>Status</th></tr>
+        </thead>
+        <tbody id="fleet-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== PANIC INDEX ===================== -->
+  <div class="view" id="panic">
+    <div class="grid g2">
+      <div class="card">
+        <div class="kicker">Demand-Side Intelligence</div>
+        <h3>Search &amp; Social Sentiment — 14 Day Trend</h3>
+        <div class="sub">Composite of search volume, social mention rate, and negative-sentiment share</div>
+        <canvas id="panicChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="kicker">City Breakdown</div>
+        <h3>Panic Index by Metro</h3>
+        <div class="sub">0–100 · triggers pre-positioning alert above 60</div>
+        <div id="city-list"></div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px;">
+      <div class="card">
+        <div class="kicker">Signal Feed</div>
+        <h3>What's Driving the Spike</h3>
+        <div class="sub">Aggregated, anonymised signal categories — not individual posts</div>
+        <div id="feed-list"></div>
+      </div>
+      <div class="card">
+        <div class="kicker">Why This Matters</div>
+        <h3>From Signal to Action</h3>
+        <div style="font-size:12px; line-height:1.85; color:var(--text);">
+          <p style="margin-bottom:10px;">Supply-side shocks rarely cause fuel shortages on their own — <b style="color:var(--amber)">panic buying does</b>. In past crises, pump queues formed 3–5 days before any real supply gap.</p>
+          <p style="margin-bottom:10px;">Sentinel tracks search intent and social chatter as a leading indicator, separate from the physical supply models, so retail stock can be pre-positioned in the specific metros showing early panic signals — before queues form.</p>
+          <p>Current read: <b style="color:var(--red)">Delhi-NCR</b> and <b style="color:var(--amber)">Bengaluru</b> are 48–72 hours ahead of the rest of the country on this curve.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== AI REASONING ===================== -->
+  <div class="view" id="reasoning">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="kicker">Adaptive Procurement Orchestrator</div>
+      <h3>Ranked Alternative Suppliers — Hormuz Contingency Scenario</h3>
+      <div class="sub">Every recommendation below is explainable — expand "Why this ranking" to see the reasoning trail</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px; border-color:var(--cyan-dim);">
+      <div class="kicker" style="color:var(--green);">● Live — Powered by Claude</div>
+      <h3>Run a Real Scenario Through the Orchestrator</h3>
+      <div class="sub">This calls the actual Claude API in real time and generates a fresh ranked recommendation — not pre-written data.</div>
+      <textarea id="scenario-input" rows="3" style="width:100%; margin-top:10px; background:#0D1119; border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:12px; resize:vertical;">Iran-linked forces threaten to blockade the Strait of Hormuz; oil flow through the strait is reduced by an estimated 35% for at least 10 days. India needs alternative crude supply fast.</textarea>
+      <div style="display:flex; align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap;">
+        <button id="run-ai-btn" class="why-toggle" style="border-color:var(--green); color:var(--green);">▶ Run Live AI Analysis</button>
+        <span id="ai-status" style="font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace;"></span>
+      </div>
+    </div>
+
+    <div id="rec-list"></div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="kicker">Factor Weighting</div>
+      <h3>How the Orchestrator Scores a Supplier</h3>
+      <div class="sub">Weights shown are current defaults — adjustable by a human operator before any order is placed</div>
+      <canvas id="weightChart" style="max-height:220px;"></canvas>
+    </div>
+  </div>
+
+  <!-- ===================== SPR OPTIMISATION ===================== -->
+  <div class="view" id="reserve">
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="lbl">CURRENT RESERVE COVER</div>
+        <div class="bignum" style="color:var(--amber)">9.5 <span style="font-size:14px;">days</span></div>
+        <div class="delta up">Fixed national SPR capacity</div>
+        <div class="barline"><i style="width:32%; background:var(--amber);"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">RECOMMENDED DRAWDOWN</div>
+        <div class="bignum" style="color:var(--cyan)">2.1<span style="font-size:14px;">%/72h</span></div>
+        <div class="delta down">Cheaper now than emergency spot buy later</div>
+        <div class="barline"><i style="width:21%; background:var(--cyan);"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">RESERVE AT DAY 10 (MODELLED)</div>
+        <div class="bignum" style="color:var(--green)">6.8 <span style="font-size:14px;">days</span></div>
+        <div class="delta down">If alt. supply lands on schedule</div>
+        <div class="barline"><i style="width:68%; background:var(--green);"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">REPLENISHMENT WINDOW</div>
+        <div class="bignum" style="color:var(--text)">14 <span style="font-size:14px;">days</span></div>
+        <div class="delta up">West Africa cargo transit + customs</div>
+        <div class="barline"><i style="width:47%; background:var(--muted);"></i></div>
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="kicker">Strategic Reserve Optimisation Agent</div>
+        <h3>SPR Drawdown Schedule — 15 Day Projection</h3>
+        <div class="sub">Compares doing nothing vs Sentinel's phased drawdown vs alt. supply arrival closing the gap</div>
+        <canvas id="sprChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="kicker">How This Agent Decides</div>
+        <h3>Drawdown Logic</h3>
+        <div style="font-size:12px; line-height:1.85; color:var(--text);">
+          <p style="margin-bottom:10px;"><b style="color:var(--cyan)">Inputs —</b> live reserve level (ISPRL storage telemetry), daily refinery consumption rate (PPAC), modelled disruption duration, and confirmed alt. supply arrival dates from the Procurement Orchestrator.</p>
+          <p style="margin-bottom:10px;"><b style="color:var(--cyan)">Logic —</b> draw down just enough to cover the gap until the earliest reliable alt. cargo lands, keeping a safety buffer above a 3-day critical floor.</p>
+          <p style="margin-bottom:10px;"><b style="color:var(--cyan)">Why phased, not lump-sum —</b> releasing reserve gradually avoids signalling panic to markets, which itself can spike prices further.</p>
+          <p><b style="color:var(--cyan)">Human gate —</b> Sentinel proposes the schedule; release is executed only after sign-off, same as the procurement recommendations.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DATA SOURCES ===================== -->
+  <div class="view" id="sources">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="kicker">From Prototype To Production</div>
+      <h3>What Powers Sentinel In A Real Deployment</h3>
+      <div class="sub">Everything in this prototype is simulated for demo purposes. This is the real data layer it would plug into.</div>
+    </div>
+    <div class="grid g3">
+      <div class="card">
+        <div class="kicker">Geospatial / Vessel</div>
+        <h3>Dark Fleet Detection</h3>
+        <div style="font-size:12px; line-height:1.8; color:var(--text);">
+          AIS feeds via <b>Spire Maritime</b> or <b>MarineTraffic API</b>, cross-checked against satellite SAR passes (<b>Sentinel-1</b>, ESA Copernicus — free) for vessels that go dark near sanctioned corridors.
+        </div>
+      </div>
+      <div class="card">
+        <div class="kicker">Market / Geopolitical</div>
+        <h3>Risk & Price Signals</h3>
+        <div style="font-size:12px; line-height:1.8; color:var(--text);">
+          <b>GDELT Project</b> and <b>NewsAPI</b> for geopolitical event signals; <b>EIA</b> and <b>Platts/Brent</b> spot price feeds for commodity pricing shifts.
+        </div>
+      </div>
+      <div class="card">
+        <div class="kicker">Demand-Side</div>
+        <h3>Panic Index</h3>
+        <div style="font-size:12px; line-height:1.8; color:var(--text);">
+          <b>Google Trends API</b> (search volume) combined with anonymised, aggregated public social mention rate — no individual posts are tracked.
+        </div>
+      </div>
+      <div class="card">
+        <div class="kicker">National Reserve</div>
+        <h3>SPR Telemetry</h3>
+        <div style="font-size:12px; line-height:1.8; color:var(--text);">
+          <b>ISPRL</b> storage-level telemetry and <b>PPAC</b> daily consumption/refinery-throughput data — both are existing government data systems, not new infrastructure.
+        </div>
+      </div>
+      <div class="card">
+        <div class="kicker">Reasoning Layer</div>
+        <h3>Orchestrator Model</h3>
+        <div style="font-size:12px; line-height:1.8; color:var(--text);">
+          <b>Claude (Anthropic API)</b> — already wired into this prototype's "Run Live AI Analysis" button — scores suppliers against live inputs from all sources above.
+        </div>
+      </div>
+      <div class="card">
+        <div class="kicker">Deployment</div>
+        <h3>Integration Path</h3>
+        <div style="font-size:12px; line-height:1.8; color:var(--text);">
+          Each feed above has a public or commercial API today — this is an integration and orchestration challenge, not a data-availability problem, which is what makes it buildable within a real deployment timeline.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>SENTINEL PROTOTYPE — Simulated data for demonstration purposes only · Built for AI-Driven Energy Supply Chain Resilience challenge</footer>
+
+<script>
+// ---------- CLOCK ----------
+function tick(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false});
+}
+tick(); setInterval(tick,1000);
+
+// ---------- NAV ----------
+document.querySelectorAll('.nav button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.view).classList.add('active');
+  });
+});
+
+// ---------- MAP RENDER ----------
+const vessels = [
+  {name:'MT ORION STAR', flag:'PAN', cargo:'Crude · 2M bbl', ping:'2 min ago', gap:'—', risk:8, status:'safe', x:18, y:55},
+  {name:'MV GULF PIONEER', flag:'MHL', cargo:'Crude · 1.8M bbl', ping:'11 min ago', gap:'—', risk:14, status:'safe', x:28, y:48},
+  {name:'MT SILVER TIDE', flag:'LBR', cargo:'Crude · 2.1M bbl', ping:'3h 40m ago', gap:'3h 40m', risk:46, status:'warn', x:38, y:60},
+  {name:'MT NAKHODA REEF', flag:'CMR', cargo:'Crude · 1.6M bbl', ping:'9h 10m ago', gap:'9h 10m', risk:81, status:'danger', x:47, y:38},
+  {name:'MV EASTERN CROWN', flag:'PAN', cargo:'Crude · 2.3M bbl', ping:'14 min ago', gap:'—', risk:11, status:'safe', x:60, y:52},
+  {name:'MT DELTA HORIZON', flag:'TGO', cargo:'Crude · 1.4M bbl', ping:'7h 55m ago', gap:'7h 55m', risk:74, status:'danger', x:70, y:32},
+];
+
+function renderMap(elId, small){
+  const el = document.getElementById(elId);
+  el.innerHTML = '<div class="sonar-sweep"></div>';
+  // route line
+  const route = document.createElement('div');
+  route.className='route-line';
+  route.style.cssText='left:8%; top:50%; width:84%;';
+  el.appendChild(route);
+  // labels for hormuz / india
+  const l1=document.createElement('div'); l1.className='tanker-label'; l1.style.left='10%'; l1.style.top='58%'; l1.textContent='STRAIT OF HORMUZ'; el.appendChild(l1);
+  const l2=document.createElement('div'); l2.className='tanker-label'; l2.style.left='82%'; l2.style.top='58%'; l2.textContent='JAMNAGAR / MUMBAI'; el.appendChild(l2);
+
+  vessels.forEach(v=>{
+    const dot=document.createElement('div');
+    dot.className='tanker-dot '+v.status;
+    dot.style.left=v.x+'%'; dot.style.top=v.y+'%';
+    dot.title=v.name+' · risk '+v.risk;
+    el.appendChild(dot);
+    if(!small){
+      const lab=document.createElement('div');
+      lab.className='tanker-label';
+      lab.style.left=v.x+'%'; lab.style.top=v.y+'%';
+      lab.textContent=v.name.split(' ')[1]||v.name;
+      el.appendChild(lab);
+    }
+  });
+}
+renderMap('mini-map', true);
+renderMap('main-map', false);
+
+// ---------- FLEET TABLE ----------
+const tbody = document.getElementById('fleet-table');
+vessels.slice().sort((a,b)=>b.risk-a.risk).forEach(v=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML = `
+    <td style="color:var(--text); font-family:'Inter',sans-serif; font-weight:600;">${v.name}</td>
+    <td>${v.flag}</td>
+    <td>${v.cargo}</td>
+    <td>${v.ping}</td>
+    <td>${v.gap}</td>
+    <td style="color:${v.risk>60?'var(--red)':v.risk>30?'var(--amber)':'var(--green)'}; font-weight:700;">${v.risk}</td>
+    <td><span class="badge ${v.status}">${v.status==='danger'?'AIS GAP — FLAGGED':v.status==='warn'?'IRREGULAR':'NORMAL'}</span></td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// ---------- PANIC CHART ----------
+const days = Array.from({length:14},(_,i)=>`D-${13-i}`);
+new Chart(document.getElementById('panicChart'),{
+  type:'line',
+  data:{
+    labels:days,
+    datasets:[
+      {label:'Search volume', data:[12,14,13,16,18,20,24,30,42,58,71,84,92,100], borderColor:'#FF9933', backgroundColor:'rgba(255,153,51,0.08)', fill:true, tension:0.35, pointRadius:0, borderWidth:2},
+      {label:'Negative sentiment share', data:[8,9,10,11,12,14,17,22,30,40,50,58,63,68], borderColor:'#3B7DD8', backgroundColor:'rgba(59,125,216,0.08)', fill:true, tension:0.35, pointRadius:0, borderWidth:2}
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{labels:{color:'#7C8798', font:{size:11}}}},
+    scales:{
+      x:{ticks:{color:'#4E5867', font:{size:10}}, grid:{color:'#1a212c'}},
+      y:{ticks:{color:'#4E5867', font:{size:10}}, grid:{color:'#1a212c'}}
+    }
+  }
+});
+
+// ---------- CITY LIST ----------
+const cities = [
+  {name:'Delhi-NCR', score:82},
+  {name:'Bengaluru', score:66},
+  {name:'Mumbai', score:54},
+  {name:'Chennai', score:41},
+  {name:'Hyderabad', score:38},
+  {name:'Kolkata', score:29},
+];
+const cityList = document.getElementById('city-list');
+cities.forEach(c=>{
+  const color = c.score>60?'var(--red)':c.score>40?'var(--amber)':'var(--green)';
+  const row=document.createElement('div');
+  row.className='city-row';
+  row.innerHTML=`
+    <div class="city-name">${c.name}</div>
+    <div class="city-bar"><i style="width:${c.score}%; background:${color};"></i></div>
+    <div class="city-score" style="color:${color}">${c.score}</div>
+  `;
+  cityList.appendChild(row);
+});
+
+// ---------- FEED ----------
+const feed = [
+  {tag:'SEARCH', txt:'"petrol shortage near me" queries up 340% in Delhi-NCR over 6 hours', meta:'Confidence: High · Source: aggregated search trends'},
+  {tag:'SOCIAL', txt:'Mention rate for fuel-queue related terms rising fastest in Bengaluru', meta:'Confidence: Medium · Source: aggregated social volume'},
+  {tag:'RETAIL', txt:'Early reports of longer-than-usual queues at 3 pumps in South Delhi', meta:'Confidence: Medium · Source: retail partner feed'},
+  {tag:'NEWS', txt:'Regional coverage of Gulf tensions increasing in frequency since yesterday', meta:'Confidence: High · Source: news volume index'},
+];
+const feedList = document.getElementById('feed-list');
+feed.forEach(f=>{
+  const item=document.createElement('div');
+  item.className='feed-item';
+  item.innerHTML=`<b style="color:var(--amber); font-family:'JetBrains Mono',monospace; font-size:10px;">[${f.tag}]</b> ${f.txt}<div class="meta">${f.meta}</div>`;
+  feedList.appendChild(item);
+});
+
+// ---------- AI REASONING RECS ----------
+const recs = [
+  {
+    name:'Nigeria — Bonny Light Crude', tag:'TOP RANKED · West Africa Corridor', confidence:91, ringColor:'#1FA34A',
+    factors:[['Tanker availability',88],['Price competitiveness',74],['Sanction exposure (inverse)',96],['Transit reliability',85],['Port/refinery compatibility',90]],
+    why:[
+      '5 VLCC-class tankers confirmed available within a 5-day window on this route — no capacity bottleneck.',
+      'Zero current sanction exposure on this supply corridor, unlike two other candidates evaluated.',
+      'Bonny Light crude assay closely matches feedstock specs already used at Jamnagar and Sikka refineries — minimal blending adjustment needed.',
+      'Landed cost is roughly 6% above the disrupted Hormuz baseline, but this is offset by avoiding demurrage risk from waiting on a contested route.'
+    ]
+  },
+  {
+    name:'United States — WTI Midland', tag:'STRONG BACKUP · Atlantic Corridor', confidence:78, ringColor:'#3B7DD8',
+    factors:[['Tanker availability',65],['Price competitiveness',68],['Sanction exposure (inverse)',99],['Transit reliability',80],['Port/refinery compatibility',72]],
+    why:[
+      'No sanction or geopolitical exposure — the safest option on that dimension alone.',
+      'Longer transit time (18–21 days) than West Africa, which delays relief versus the 9.5-day reserve window.',
+      'Requires minor refinery recalibration since WTI Midland is lighter than typical Gulf crude grades used currently.',
+      'Recommended as a parallel order rather than the sole solution, to diversify supplier risk.'
+    ]
+  },
+  {
+    name:'Iraq — Basra Heavy (Non-Hormuz berth)', tag:'CONDITIONAL · Monitor Closely', confidence:52, ringColor:'#FF9933',
+    factors:[['Tanker availability',70],['Price competitiveness',82],['Sanction exposure (inverse)',55],['Transit reliability',48],['Port/refinery compatibility',88]],
+    why:[
+      'Cheapest option by unit price, and refinery-compatible with minimal adjustment.',
+      'However, most loading berths still route through waters adjacent to the contested corridor, only partially reducing exposure.',
+      'Transit reliability score is lower due to congestion reports at alternate Iraqi export terminals this week.',
+      'Sentinel recommends this only as a smaller supplementary order, not a primary substitute, until berth congestion clears.'
+    ]
+  }
+];
+
+const recList = document.getElementById('rec-list');
+
+function renderRecs(recsArray, sourceLabel){
+  recList.innerHTML = '';
+  if(sourceLabel){
+    const tag=document.createElement('div');
+    tag.style.cssText='font-size:11px; color:var(--green); font-family:JetBrains Mono,monospace; margin-bottom:8px;';
+    tag.textContent = sourceLabel;
+    recList.appendChild(tag);
+  }
+  recsArray.forEach((r,i)=>{
+    const card=document.createElement('div');
+    card.className='rec-card';
+    card.innerHTML=`
+      <div class="rec-top">
+        <div>
+          <div class="rec-title">${i+1}. ${r.name}</div>
+          <div class="rec-tag">${r.tag}</div>
+        </div>
+        <div class="confidence">
+          <div>
+            <div style="font-size:10px; color:var(--muted); text-align:right;">CONFIDENCE</div>
+            <div class="conf-ring" style="border:3px solid ${r.ringColor}; color:${r.ringColor};">${r.confidence}%</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        ${r.factors.map(f=>`
+          <div class="factor-row">
+            <div class="factor-name">${f[0]}</div>
+            <div class="factor-bar"><i style="width:${f[1]}%; background:${r.ringColor};"></i></div>
+            <div class="factor-val">${f[1]}</div>
+          </div>`).join('')}
+      </div>
+      <button class="why-toggle" data-idx="${i}">Why this ranking? ▾</button>
+      <div class="why-box" id="why-${i}">
+        <ul>${r.why.map(w=>`<li>${w}</li>`).join('')}</ul>
+        <div class="conf-note">Sentinel shows its reasoning trail so a human operator can override or approve before any order is placed — this is a recommendation, not an autonomous purchase.</div>
+      </div>
+    `;
+    recList.appendChild(card);
+  });
+}
+
+// Event delegation so this works for both the initial mock cards and live-loaded ones
+recList.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.why-toggle');
+  if(!btn) return;
+  const box=document.getElementById('why-'+btn.dataset.idx);
+  box.classList.toggle('open');
+  btn.textContent = box.classList.contains('open') ? 'Hide reasoning ▴' : 'Why this ranking? ▾';
+});
+
+renderRecs(recs, '◆ STATIC PREVIEW — click "Run Live AI Analysis" above for a real Claude-generated result');
+
+// ---------- LIVE CLAUDE API CALL ----------
+const ringPalette = ['#1FA34A','#3B7DD8','#FF9933','#DC2626','#8B96A8'];
+
+document.getElementById('run-ai-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('run-ai-btn');
+  const status = document.getElementById('ai-status');
+  const scenario = document.getElementById('scenario-input').value.trim();
+  if(!scenario){ status.textContent = 'Please describe a scenario first.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Calling Claude...';
+  status.textContent = 'Contacting live model — this can take 10–20 seconds';
+  status.style.color = 'var(--amber)';
+
+  const systemPrompt = `You are the Adaptive Procurement Orchestrator inside "Sentinel", an AI system that helps India respond to crude oil supply disruptions. Given a disruption scenario, propose 3 ranked alternative crude oil suppliers/routes for India.
+
+Respond with ONLY a valid JSON array (no markdown fences, no commentary, no preamble). Each element must have exactly this shape:
+{
+  "name": "Country — Crude grade name",
+  "tag": "short 3-5 word ranking tag e.g. TOP RANKED · West Africa Corridor",
+  "confidence": <integer 0-100>,
+  "factors": [["Tanker availability", <0-100>], ["Price competitiveness", <0-100>], ["Sanction exposure (inverse, higher = safer)", <0-100>], ["Transit reliability", <0-100>], ["Port/refinery compatibility", <0-100>]],
+  "why": ["reasoning bullet 1", "reasoning bullet 2", "reasoning bullet 3", "reasoning bullet 4"]
+}
+Ground your reasoning in realistic oil-market considerations (real supplier geographies, realistic transit times, plausible sanction situations, refinery compatibility) even though this is a simulated exercise. Return exactly 3 suppliers, ordered best to worst.`;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [
+          { role: "user", content: `Disruption scenario:\n${scenario}\n\nGenerate the ranked supplier recommendations now.` }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const textBlock = (data.content || []).map(b => b.text || '').join('\n');
+    const cleaned = textBlock.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    const withColors = parsed.map((r, i) => ({ ...r, ringColor: ringPalette[i % ringPalette.length] }));
+    renderRecs(withColors, '● LIVE — generated just now by Claude based on your scenario');
+    status.textContent = 'Done — recommendations generated live.';
+    status.style.color = 'var(--green)';
+  }catch(err){
+    console.error('Claude API error:', err);
+    status.textContent = 'Live call failed — showing static preview instead. (' + err.message + ')';
+    status.style.color = 'var(--red)';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '▶ Run Live AI Analysis';
+  }
+});
+
+// ---------- WEIGHT CHART ----------
+// ---------- SPR DRAWDOWN CHART ----------
+new Chart(document.getElementById('sprChart'),{
+  type:'line',
+  data:{
+    labels:['D0','D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12','D13','D14','D15'],
+    datasets:[
+      {
+        label:'No action (consumption only)',
+        data:[9.5,8.8,8.1,7.4,6.7,6.0,5.3,4.6,3.9,3.2,2.5,1.8,1.1,0.4,0,0],
+        borderColor:'#DC2626', backgroundColor:'rgba(220,38,38,0.08)', tension:0.3, pointRadius:0
+      },
+      {
+        label:'Sentinel phased drawdown',
+        data:[9.5,9.3,9.0,8.7,8.3,7.9,7.5,7.1,6.8,6.5,6.8,7.4,8.1,8.7,9.2,9.5],
+        borderColor:'#FF9933', backgroundColor:'rgba(255,153,51,0.10)', tension:0.3, pointRadius:0
+      },
+      {
+        label:'Alt. supply arrival (Day 10+)',
+        data:[9.5,9.3,9.0,8.7,8.3,7.9,7.5,7.1,6.8,6.5,7.9,8.9,9.6,9.9,9.9,9.9],
+        borderColor:'#1FA34A', backgroundColor:'rgba(31,163,74,0.08)', tension:0.3, pointRadius:0, borderDash:[5,4]
+      }
+    ]
+  },
+  options:{
+    plugins:{legend:{labels:{color:'#E6EAF0', font:{size:10}}}},
+    scales:{
+      x:{ticks:{color:'#4E5867', font:{size:9}}, grid:{color:'#1a212c'}},
+      y:{ticks:{color:'#4E5867', font:{size:10}}, grid:{color:'#1a212c'}, title:{display:true, text:'Reserve cover (days)', color:'#8B96A8', font:{size:10}}, min:0, max:11}
+    }
+  }
+});
+
+new Chart(document.getElementById('weightChart'),{
+  type:'bar',
+  data:{
+    labels:['Tanker availability','Price competitiveness','Sanction exposure','Transit reliability','Refinery compatibility'],
+    datasets:[{
+      data:[25,20,25,15,15],
+      backgroundColor:['#3B7DD8','#FF9933','#DC2626','#1FA34A','#8B96A8'],
+      borderRadius:6
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#4E5867', font:{size:10}}, grid:{color:'#1a212c'}, max:30},
+      y:{ticks:{color:'#E6EAF0', font:{size:11}}, grid:{display:false}}
+    }
+  }
+});
+</script>
+
+</body>
+</html>
