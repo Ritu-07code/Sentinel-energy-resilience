@@ -2,8 +2,6 @@
 
 **ET AI Hackathon 2026 · Problem Statement 2: AI-Driven Energy Supply Chain Resilience for Import-Dependent Economies**
 
-Team: *[add your team name(s) here]*
-
 ## What it does
 
 Sentinel is an AI-powered command-center dashboard for India's crude oil supply resilience:
